@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>login</title>
+  <link rel="stylesheet" href="login.css" type="text/css">
+</head>
+<body>
+
+	<div>
+		<div id="log"><!--灰色半透明北景--></div>
+        <!--前景小窗-->
+        <p>
+        账号:<input class="user" id="user" type="text"><br/>
+        密码:<input class="password" id="password" type="password"><br/>
+        <a class="button" id="login" style="font-size:30px;" >登录</a>
+        <a class="button" id="register" href="regist.html" style="font-size:30px; text-decoration: none;" >注册></a>
+        </p>    
+    </div>
+  <!--<div>
+    <label for="user">用户名</label><input type="text" id="user">
+  </div>
+  <div>
+    <label for="password">密   码</label><input type="password" id="password">
+  </div>
+  <div>
+    <button id="login">登录</button>
+    <button id="register"><a href="regist.html">注册</a></button>
+  </div>-->
+</body>
+<script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+<script>
+  $(function () {
+    $("#login").click(function () {
+      if ($("#user").val().length == 0){
+        return alert("请输入内容!");
+      }
+      if ($("#password").val().length == 0){
+        return alert("请输入密码!");
+      }
+ 
+      $.ajax({
+        url:"http://localhost:3000/login",
+        type:"POST",
+        data:{
+          username:$("#user").val(),
+          password:$("#password").val()
+        },
+        success:function (res) {
+          if( res=="登录成功!"){
+          alert("登录成功!");
+          window.location.href="2048.html";
+        }
+        else {
+          alert(res);
+        }
+        },
+        error:function (err) {
+          console.log(err);
+        }
+      })
+ 
+    })
+  });
+</script>
+</html>
