@@ -1,3 +1,37 @@
+package com.zucc.mjk1336.mycurrencies;
+
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.res.AssetManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.PublicKey;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Properties;
+
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
     private Button mCalcButton;
@@ -6,70 +40,86 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private Spinner mForSpinner, mHomSpinner;
     private String[] mCurrencies;
 
-    public static final String FOR= "FOR_CURRENCY";
-    public static final String HOM= "HOM_CURRENCY";
-    //开发者秘钥
+    public static final String FOR = "For_CURRENCY";
+    public static final String HOM = "HOM_CURRENCY";
+
+    //this will contain my developers key
     private String mKey;
+    //used to fetch the 'rates' json object from openexchangerates.org
     public static final String RATES = "rates";
     public static final String URL_BASE =
             "http://openexchangerates.org/api/latest.json?app_id=";
+    //used to format data from openexchangerates.org
     private static final DecimalFormat DECIMAL_FORMAT = new
             DecimalFormat("#,##0.00000");
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         //从Bundle中提取货币代码
         ArrayList<String> arrayList = ((ArrayList<String>)
                 getIntent().getSerializableExtra(SplashActivity.KEY_ARRAYLIST));
         Collections.sort(arrayList);
         mCurrencies = arrayList.toArray(new String[arrayList.size()]);
 
-        mConvertedTextView = (TextView) findViewById(R.id.txt_converted);
+        //assign references to our views
+        mConvertedTextView = (TextView)findViewById(R.id.txt_converted);
         mAmountEditText = (EditText)findViewById(R.id.edt_amount);
-        mCalcButton = (Button) findViewById(R.id.btn_calc);
-        mForSpinner = (Spinner) findViewById(R.id.spn_for);
-        mHomSpinner = (Spinner) findViewById(R.id.spn_hom);
+        mCalcButton = (Button)findViewById(R.id.btn_calc);
+        mForSpinner = (Spinner)findViewById(R.id.spn_for);
+        mHomSpinner = (Spinner)findViewById(R.id.spn_hom);
 
+        //controller:mediates model and view
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(
+
                 //context
                 this,
+                //view:layout you see when the spinner is closed
                 R.layout.spinner_closed,
+                //model:the array of Strings
                 mCurrencies
         );
-
+        //view: layout you see when the spinner is open
         arrayAdapter.setDropDownViewResource(
                 android.R.layout.simple_spinner_dropdown_item);
-
+        //assign adapters to spinners
+        mHomSpinner.setAdapter(arrayAdapter);
+        mForSpinner.setAdapter(arrayAdapter);
+        //委托Spinner的动作
         mHomSpinner.setOnItemSelectedListener(this);
         mForSpinner.setOnItemSelectedListener(this);
 
-        if(savedInstanceState == null
-                && (PrefsMgr.getString(this, FOR) == null &&
-                PrefsMgr.getString(this, HOM) == null)) {
+        //set to shared-perferences or pull from shared-preferences on restart
+        if(savedInstanceState == null&&
+                (PrefsMgr.getString(this, FOR) == null)&&
+                PrefsMgr.getString(this, HOM) == null){
 
             mForSpinner.setSelection(findPositionGivenCode("USD", mCurrencies));
             mHomSpinner.setSelection(findPositionGivenCode("CNY", mCurrencies));
 
-            PrefsMgr.setString(this, FOR,"USD");
-            PrefsMgr.setString(this, HOM,"CNY");
-        } else  {
+            PrefsMgr.setString(this, FOR, "USD");
+            PrefsMgr.setString(this, HOM, "CNY");
+        }else {
             mForSpinner.setSelection(findPositionGivenCode(PrefsMgr.getString(this,
                     FOR), mCurrencies));
             mHomSpinner.setSelection(findPositionGivenCode(PrefsMgr.getString(this,
                     HOM), mCurrencies));
-
-
         }
 
         mCalcButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 new CurrencyConverterTask().execute(URL_BASE+mKey);
             }
         });
         mKey = getKey("open_key");
+
     }
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -89,9 +139,12 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         }
         return true;
         // return super.onPrepareOptionsMenu(item);
-
     }
 
+    /**
+     * function 下面3个方法用来检查用户是否连接网络
+     * @return
+     */
     public boolean isOnline() {
         ConnectivityManager cm =
                 (ConnectivityManager)
@@ -122,8 +175,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         PrefsMgr.setString(this, HOM, extractCodeFromCurrency((String)
                 mHomSpinner.getSelectedItem()));
 
-
     }
+
 
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -149,9 +202,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     @Override
     public void onNothingSelected(AdapterView<?> parent) {
-
     }
-    //从Currency中提取代码
+
+    /**
+     * 查询给定代码的位置
+     * 设置spinner特定的值，需要查找对应的索引位子
+     * @param code
+     * @param currencies
+     * @return
+     */
     private int findPositionGivenCode(String code, String[] currencies) {
 
         for (int i = 0; i < currencies.length; i++) {
@@ -167,6 +226,12 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         return (currency).substring(0,3);
     }
 
+
+    /**
+     * 获得开发者密钥
+     * @param keyName
+     * @return
+     */
     private String getKey(String keyName){
         AssetManager assetManager = this.getResources().getAssets();
         Properties properties = new Properties();
@@ -181,6 +246,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     }
 
+    /**
+     * 钱币转换任务
+     */
     private class CurrencyConverterTask extends AsyncTask<String, Void, JSONObject> {
         private ProgressDialog progressDialog;
         @Override
